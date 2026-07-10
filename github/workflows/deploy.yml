@@ -1,0 +1,33 @@
+name: Pipeline CI/CD Automatizado a AWS
+
+on:
+  push:
+    branches: [ main ] 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Descargar el código de GitHub
+      uses: actions/checkout@v3
+
+    - name: Autenticarse en AWS
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Iniciar sesión en AWS ECR (Repositorio de Docker)
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Compilar y subir imágenes de Docker a AWS
+      run: |
+        docker build -t mi-clinica-turnos ./microservicio-turnos
+        docker tag mi-clinica-turnos:latest TU_CUENTA_AWS.dkr.ecr.us-east-1.amazonaws.com/mi-clinica-turnos:latest
+        docker push TU_CUENTA_AWS.dkr.ecr.us-east-1.amazonaws.com/mi-clinica-turnos:latest
+
+    - name: Actualizar los servidores en Kubernetes (AWS EKS)
+      run: |
+        aws eks update-kubeconfig --name clinica-cluster --region us-east-1
+        kubectl apply -f deployment.yaml
