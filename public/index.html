@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro Médico · Turnos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="cabecera">
+        <div class="cabecera-contenido">
+            <div class="marca">
+                <span class="cruz" aria-hidden="true"></span>
+                <div>
+                    <strong>Centro Médico</strong>
+                    <h2>DRA. Barrionuevo Paula</h2>
+                    <small>Medica Clinica-Gestión de turnos</small>
+                </div>
+            </div>
+            <p class="atencion">Horarios de atención<br>Mañana 08:00–10:30 · Tarde 15:00–17:30</p>
+        </div>
+    </header>
+
+    <main>
+        <section class="tarjeta">
+            <h1>Solicitud de turno</h1>
+            <p class="intro">Complete los datos y elija un horario disponible. Los turnos tienen una duración de 30 minutos.</p>
+
+            <form id="form-turno">
+                <fieldset>
+                    <legend><span class="paso">1</span> Datos del paciente</legend>
+                    <div class="campo">
+                        <label for="paciente">Nombre y apellido</label>
+                        <input type="text" id="paciente" placeholder="Ej: María Gómez" maxlength="60" required>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend><span class="paso">2</span> Fecha y horario</legend>
+                    <div class="fila">
+                        <div class="campo">
+                            <label for="fecha">Fecha</label>
+                            <input type="date" id="fecha" required>
+                        </div>
+                        <div class="campo">
+                            <label for="hora">Horario</label>
+                            <select id="hora" required disabled></select>
+                        </div>
+                    </div>
+                    <p id="disponibilidad" class="ayuda"></p>
+                </fieldset>
+
+                <button type="submit" class="principal">Confirmar solicitud</button>
+            </form>
+
+            <p id="mensaje" role="status"></p>
+        </section>
+
+        <section class="tarjeta">
+            <div class="encabezado">
+                <h2>Turnos confirmados</h2>
+                <button type="button" id="btn-actualizar" class="enlace">Actualizar</button>
+            </div>
+            <ul id="lista-turnos"></ul>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
