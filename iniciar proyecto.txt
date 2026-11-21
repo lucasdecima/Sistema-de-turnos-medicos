@@ -1,0 +1,2 @@
+1) en el gateway: node gateway
+2) en microservicios: npm run start:a y npm run start:b
