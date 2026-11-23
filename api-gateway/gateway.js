@@ -12,6 +12,7 @@ const PAUSA_NODO_CAIDO_MS = 5000;
 
 
 
+
 const nodos = [
     { url: 'http://localhost:3001', caidoHasta: 0 },
     { url: 'http://localhost:3002', caidoHasta: 0 }
@@ -22,6 +23,7 @@ let cacheExpiraEn = 0;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
 
 
 
@@ -52,7 +54,32 @@ const llamar = async (nodo, metodo, ruta, cuerpo) => {
 };
 
 
-const esMasAntiguo = (a, b) => a.creado < b.creado || (a.creado === b.creado && a.id < b.id);
+
+const reenviar = async (metodo, ruta, cuerpo) => {
+    let ultimaRespuesta = null;
+
+    for (const nodo of nodosDisponibles()) {
+        try {
+            const r = await llamar(nodo, metodo, ruta, cuerpo);
+            if (r.status < 500) {
+                console.log(`[BALANCEADOR] ${metodo} ${ruta} atendido por ${nodo.url}`);
+                return r;
+            }
+            ultimaRespuesta = r;
+            marcarCaido(nodo, `respondió ${r.status}`);
+        } catch (error) {
+            marcarCaido(nodo, 'sin conexión o timeout');
+        }
+    }
+
+    return {
+        status: ultimaRespuesta?.status || 503,
+        datos: { mensaje: ultimaRespuesta?.datos?.mensaje || "No hay servidores disponibles en este momento." }
+    };
+};
+
+
+
 
 
 
@@ -62,82 +89,29 @@ app.get('/api/turnos', async (req, res) => {
         return res.json(cacheTurnos);
     }
 
-    const consultados = nodosDisponibles();
-    const respuestas = await Promise.allSettled(consultados.map(n => llamar(n, 'GET', '/api/turnos')));
-
-    const porHorario = new Map(); 
-    let algunoRespondio = false;
-
-    respuestas.forEach((r, i) => {
-        if (r.status === 'fulfilled' && r.value.status === 200 && Array.isArray(r.value.datos)) {
-            algunoRespondio = true;
-            for (const t of r.value.datos) {
-                const clave = `${t.fecha} ${t.hora}`;
-                const actual = porHorario.get(clave);
-                if (!actual || esMasAntiguo(t, actual)) porHorario.set(clave, t);
-            }
-        } else {
-            marcarCaido(consultados[i], 'no respondió al listar');
-        }
-    });
-
-    if (!algunoRespondio) {
-        return res.status(503).json({ mensaje: "No hay servidores disponibles en este momento." });
+    const r = await reenviar('GET', '/api/turnos');
+    if (r.status === 200 && Array.isArray(r.datos)) {
+        cacheTurnos = r.datos;
+        cacheExpiraEn = Date.now() + 3000;
     }
-
-    cacheTurnos = [...porHorario.values()].sort((a, b) => `${a.fecha} ${a.hora}`.localeCompare(`${b.fecha} ${b.hora}`));
-    cacheExpiraEn = Date.now() + 3000;
-    console.log(`[BALANCEADOR] Lista unificada de ${consultados.length} nodo(s): ${cacheTurnos.length} turno(s).`);
-    res.json(cacheTurnos);
+    res.status(r.status).json(r.datos);
 });
-
 
 
 app.post('/api/turnos', async (req, res) => {
-    
-    const cuerpo = { ...req.body, id: randomUUID() };
-    let ultimaRespuesta = null;
-
-    for (const nodo of nodosDisponibles()) {
-        try {
-            const r = await llamar(nodo, 'POST', '/api/turnos', cuerpo);
-            if (r.status < 500) {
-                console.log(`[BALANCEADOR] POST atendido por ${nodo.url}`);
-                cacheTurnos = null; 
-                return res.status(r.status).json(r.datos);
-            }
-            ultimaRespuesta = r; 
-            marcarCaido(nodo, `respondió ${r.status}`);
-        } catch (error) {
-            marcarCaido(nodo, 'sin conexión o timeout');
-        }
-    }
-
-    res.status(ultimaRespuesta?.status || 503).json({
-        mensaje: ultimaRespuesta?.datos?.mensaje || "No hay servidores disponibles en este momento."
-    });
+    const r = await reenviar('POST', '/api/turnos', { ...req.body, id: randomUUID() });
+    cacheTurnos = null; 
+    res.status(r.status).json(r.datos);
 });
+
 
 
 
 
 app.delete('/api/turnos/:id', async (req, res) => {
-    const consultados = nodosDisponibles();
-    const ruta = `/api/turnos/${encodeURIComponent(req.params.id)}`;
-    const respuestas = await Promise.allSettled(consultados.map(n => llamar(n, 'DELETE', ruta)));
-
-    let algunoOk = false;
-    respuestas.forEach((r, i) => {
-        if (r.status === 'fulfilled' && r.value.status < 300) algunoOk = true;
-        else marcarCaido(consultados[i], 'no respondió al eliminar');
-    });
-
-    if (!algunoOk) {
-        return res.status(503).json({ mensaje: "No hay servidores disponibles en este momento." });
-    }
-    
+    const r = await reenviar('DELETE', `/api/turnos/${encodeURIComponent(req.params.id)}`);
     cacheTurnos = null;
-    res.json({ mensaje: "Turno eliminado." });
+    res.status(r.status).json(r.datos);
 });
 
 app.listen(PORT, () => {

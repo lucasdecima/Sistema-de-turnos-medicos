@@ -2,8 +2,6 @@ const URL_API = 'http://localhost:8000/api/turnos';
 
 
 
-
-
 const HORARIOS = {
     'Mañana': ['08:00', '08:30', '09:00', '09:30', '10:00'],
     'Tarde':  ['15:00', '15:30', '16:00', '16:30', '17:00']
@@ -37,6 +35,7 @@ function mostrarMensaje(texto, esError = false) {
     mensaje.textContent = texto;
     mensaje.className = esError ? 'error' : '';
 }
+
 
 
 
@@ -163,7 +162,6 @@ async function cargarTurnos() {
 
 
 
-
 async function eliminarTurno(turno) {
     if (!confirm(`¿Eliminar el turno de ${turno.paciente}?`)) return;
 
@@ -171,7 +169,7 @@ async function eliminarTurno(turno) {
         const res = await fetch(`${URL_API}/${encodeURIComponent(turno.id)}`, { method: 'DELETE' });
         const resultado = await res.json();
         mostrarMensaje(resultado.mensaje, !res.ok);
-        if (res.ok) cargarTurnos();
+        cargarTurnos(); 
     } catch (error) {
         mostrarMensaje('Error al conectar con el servidor.', true);
     }
@@ -180,8 +178,12 @@ async function eliminarTurno(turno) {
 
 
 
-function validarSolicitud(paciente, fecha, hora) {
-    if (!paciente) return 'Ingrese el nombre del paciente.';
+
+
+function validarSolicitud(dni, nombre, apellido, fecha, hora) {
+    if (!/^\d{7,8}$/.test(dni)) return 'El DNI debe tener 7 u 8 números, sin puntos.';
+    if (!nombre) return 'Ingrese el nombre del paciente.';
+    if (!apellido) return 'Ingrese el apellido del paciente.';
     if (!fecha) return 'Elija una fecha.';
     if (fecha < fechaHoy()) return 'La fecha no puede ser anterior a hoy.';
     if (!TODOS_LOS_HORARIOS.includes(hora)) return 'Elija uno de los horarios disponibles.';
@@ -191,14 +193,17 @@ function validarSolicitud(paciente, fecha, hora) {
 
 
 
+
 form.addEventListener('submit', async (e) => {
     e.preventDefault(); 
 
-    const paciente = document.getElementById('paciente').value.trim();
+    const dni = document.getElementById('dni').value.trim();
+    const nombre = document.getElementById('nombre').value.trim();
+    const apellido = document.getElementById('apellido').value.trim();
     const fecha = inputFecha.value;
     const hora = selectHora.value;
 
-    const error = validarSolicitud(paciente, fecha, hora);
+    const error = validarSolicitud(dni, nombre, apellido, fecha, hora);
     if (error) {
         mostrarMensaje(error, true);
         return;
@@ -208,7 +213,7 @@ form.addEventListener('submit', async (e) => {
         const res = await fetch(URL_API, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ paciente, fecha, hora })
+            body: JSON.stringify({ dni, nombre, apellido, fecha, hora })
         });
 
         const resultado = await res.json();
@@ -217,14 +222,14 @@ form.addEventListener('submit', async (e) => {
         if (res.ok) {
             form.reset();
             inputFecha.min = fechaHoy();
-            actualizarHorarios();
-            setTimeout(cargarTurnos, 2500);
-            setTimeout(cargarTurnos, 6000);
         }
+        
+        await cargarTurnos();
     } catch (error) {
         mostrarMensaje('Error al conectar con el servidor.', true);
     }
 });
+
 
 
 

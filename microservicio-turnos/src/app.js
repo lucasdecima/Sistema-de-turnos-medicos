@@ -1,10 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import turnosRoutes from './routes/turnosRoutes.js';
-import { iniciarSincronizacion } from './controller/turnosController.js';
+import { obtenerPool } from './db/conexion.js';
 
 const app = express();
-
 
 const PORT = process.env.PORT || 3001;
 
@@ -21,5 +20,17 @@ app.use('/api', turnosRoutes);
 
 app.listen(PORT, () => {
     console.log(`[MICROSERVICIO TURNOS] Instancia corriendo en http://localhost:${PORT}`);
-    iniciarSincronizacion(); 
+
+
+
+
+    
+    (async () => {
+        try {
+            await obtenerPool();
+            console.log('[BD] Conectado a SQL Server.');
+        } catch (error) {
+            console.error(`[BD] No se pudo conectar a SQL Server: ${error.message}`);
+        }
+    })();
 });

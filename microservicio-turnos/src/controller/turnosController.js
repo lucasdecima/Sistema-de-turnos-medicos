@@ -1,29 +1,5 @@
 import { randomUUID } from 'node:crypto';
-
-
-
-
-
-const PEER_URL = process.env.PEER_URL;
-
-const LIMITE_COLA = Number(process.env.LIMITE_COLA) || 5;
-
-
-const turnos = new Map();
-
-
-const eliminados = new Set();
-
-
-
-turnos.set('semilla-1', {
-    id: 'semilla-1',
-    paciente: "Paciente de Prueba (Profesor)",
-    fecha: "2026-06-30",
-    hora: "16:00",
-    estado: "confirmado",
-    creado: "2000-01-01T00:00:00.000Z"
-});
+import { listarTurnosConfirmados, insertarTurno, cancelarTurno, esViolacion } from '../db/TurnosRepositorio.js';
 
 
 
@@ -42,9 +18,17 @@ const horaAhora = () => {
     return `${dosDigitos(d.getHours())}:${dosDigitos(d.getMinutes())}`;
 };
 
+const REGEX_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const REGEX_DNI = /^\d{7,8}$/; // 
 
 
-const validarFechaYHora = (fecha, hora) => {
+const limpiar = (texto) => String(texto ?? '').trim().replace(/\s+/g, ' ');
+
+
+const validarSolicitud = ({ dni, nombre, apellido, fecha, hora }) => {
+    if (!REGEX_DNI.test(dni)) return "El DNI debe tener 7 u 8 números, sin puntos.";
+    if (!nombre || nombre.length > 60) return "Ingrese el nombre del paciente (máximo 60 caracteres).";
+    if (!apellido || apellido.length > 60) return "Ingrese el apellido del paciente (máximo 60 caracteres).";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || isNaN(new Date(fecha).getTime())) {
         return "La fecha no tiene un formato válido.";
     }
@@ -55,176 +39,83 @@ const validarFechaYHora = (fecha, hora) => {
 };
 
 
-const colaEventos = [];
-let procesando = false;
 
 
-const esMasAntiguo = (a, b) => a.creado < b.creado || (a.creado === b.creado && a.id < b.id);
 
 
-const fusionar = (turnosEntrantes = [], eliminadosEntrantes = []) => {
-    
-    for (const id of eliminadosEntrantes) {
-        eliminados.add(id);
-        turnos.delete(id);
-    }
-
-    
-    for (const t of turnosEntrantes) {
-        if (eliminados.has(t.id) || turnos.has(t.id)) continue; 
-
-        const choque = [...turnos.values()].find(x => x.fecha === t.fecha && x.hora === t.hora);
-        if (!choque) {
-            turnos.set(t.id, t);
-        } else if (esMasAntiguo(t, choque)) {
-            
-            turnos.delete(choque.id);
-            eliminados.add(choque.id);
-            turnos.set(t.id, t);
-        } else {
-            eliminados.add(t.id);
-        }
-    }
-};
 
 
-const llamarAlPeer = async (ruta, opciones = {}) => {
-    if (!PEER_URL) return null;
+export const getTurnos = async (req, res) => {
     try {
-        const res = await fetch(PEER_URL + ruta, { ...opciones, signal: AbortSignal.timeout(2000) });
-        return res.ok ? await res.json().catch(() => ({})) : null;
-    } catch {
-        console.log(`[Réplica] No se pudo contactar a ${PEER_URL} (se sincronizará más tarde).`);
-        return null;
-    }
-};
-
-const sincronizarConPeer = async () => {
-    const estado = await llamarAlPeer('/api/interno/estado');
-    if (estado) fusionar(estado.turnos, estado.eliminados);
-};
-
-
-
-
-export const iniciarSincronizacion = () => {
-    if (!PEER_URL) return;
-    sincronizarConPeer();
-    setInterval(sincronizarConPeer, 5000);
-};
-
-
-
-const procesarSiguienteEvento = async () => {
-    if (colaEventos.length === 0) {
-        procesando = false;
-        return;
-    }
-
-    procesando = true;
-    const evento = colaEventos.shift();
-    const { id, paciente, fecha, hora } = evento.datos;
-
-    console.log(`[Worker] Procesando asíncronamente el turno para: ${paciente}`);
-
-    try {
-        
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        const yaProcesado = turnos.has(id) || eliminados.has(id); 
-        const horarioOcupado = [...turnos.values()].some(t => t.fecha === fecha && t.hora === hora);
-
-        if (yaProcesado) {
-            console.log(`[♻️ IGNORADO] El turno ${id} ya estaba procesado o fue cancelado.`);
-        } else if (horarioOcupado) {
-            console.log(`[❌ RECHAZADO] Conflicto de horario para: ${paciente}`);
-        } else {
-            const turno = { id, paciente, fecha, hora, estado: "confirmado", creado: new Date().toISOString() };
-            turnos.set(id, turno);
-            console.log(`[🎉 ÉXITO] Turno confirmado y guardado para: ${paciente}`);
-
-            
-            llamarAlPeer('/api/interno/replicar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ turno })
-            });
-        }
+        res.json(await listarTurnosConfirmados());
     } catch (error) {
-        
-        console.error('[Worker] Error procesando evento:', error);
+        console.error('[BD] Error al listar turnos:', error.message);
+        res.status(503).json({ mensaje: "No se pudo consultar la base de datos. Intente nuevamente." });
     }
-
-    procesarSiguienteEvento();
-};
-
-
-
-
-export const getTurnos = (req, res) => {
-    res.json([...turnos.values()]);
 };
 
 
 
 
 
-export const crearTurno = (req, res) => {
-    
-    const { id, paciente, fecha, hora } = req.body;
 
-    if (!paciente || !fecha || !hora) {
-        return res.status(400).json({ mensaje: "Faltan datos obligatorios (paciente, fecha u hora)." });
+export const crearTurno = async (req, res) => {
+    const cuerpo = req.body ?? {};
+    const datos = {
+        dni: String(cuerpo.dni ?? '').trim(),
+        nombre: limpiar(cuerpo.nombre),
+        apellido: limpiar(cuerpo.apellido),
+        fecha: String(cuerpo.fecha ?? '').trim(),
+        hora: String(cuerpo.hora ?? '').trim()
+    };
+
+    const error = validarSolicitud(datos);
+    if (error) {
+        return res.status(400).json({ mensaje: error });
     }
 
-    const errorFechaHora = validarFechaYHora(fecha, hora);
-    if (errorFechaHora) {
-        return res.status(400).json({ mensaje: errorFechaHora });
+
+
+
+    const turnoId = REGEX_UUID.test(cuerpo.id ?? '') ? cuerpo.id.toLowerCase() : randomUUID();
+    const turno = { id: turnoId, paciente: `${datos.apellido}, ${datos.nombre}`, fecha: datos.fecha, hora: datos.hora };
+
+    try {
+        const creado = await insertarTurno({ turnoId, ...datos });
+        if (!creado) {
+            return res.status(200).json({ mensaje: "Ese turno ya estaba registrado.", turno });
+        }
+        console.log(`[🎉 ÉXITO] Turno confirmado: ${turno.paciente} el ${turno.fecha} a las ${turno.hora}`);
+        return res.status(201).json({ mensaje: "Turno confirmado.", turno });
+    } catch (err) {
+        if (esViolacion(err, 'UX_Turnos_Fecha_Hora')) {
+            console.log(`[❌ RECHAZADO] Horario ocupado: ${turno.fecha} ${turno.hora}`);
+            return res.status(409).json({ mensaje: "Ese horario ya fue reservado. Elija otro." });
+        }
+        console.error('[BD] Error al guardar el turno:', err.message);
+        return res.status(503).json({ mensaje: "No se pudo guardar el turno. Intente nuevamente." });
     }
-
-    
-    if (colaEventos.length >= LIMITE_COLA) {
-        console.log(`[⚠️ SATURADO] Fila llena (${colaEventos.length}). Rechazo la petición.`);
-        return res.status(503).json({ mensaje: "Nodo saturado, intente nuevamente." });
-    }
-
-    colaEventos.push({
-        tipo: 'TurnoSolicitado',
-        datos: { id: id || randomUUID(), paciente, fecha, hora },
-        fechaRegistro: new Date()
-    });
-    console.log(`[Event Broker] Evento 'TurnoSolicitado' recibido. Fila actual: ${colaEventos.length}`);
-
-    if (!procesando) {
-        procesarSiguienteEvento();
-    }
-
-    
-    
-    res.status(202).json({
-        mensaje: "Tu solicitud ha entrado a la fila de procesamiento de la clínica. Verifica el estado en unos instantes."
-    });
 };
 
 
 
-export const eliminarTurno = (req, res) => {
+
+
+export const eliminarTurno = async (req, res) => {
     const { id } = req.params;
-    const existia = turnos.delete(id);
-    eliminados.add(id); 
-    console.log(`[🗑️ ELIMINADO] Turno ${id} (${existia ? 'existía en este nodo' : 'no estaba en este nodo'})`);
-    res.json({ mensaje: "Turno eliminado.", existia });
-};
+    if (!REGEX_UUID.test(id)) {
+        return res.status(400).json({ mensaje: "Identificador de turno inválido." });
+    }
 
-
-
-export const estadoInterno = (req, res) => {
-    res.json({ turnos: [...turnos.values()], eliminados: [...eliminados] });
-};
-
-export const replicarInterno = (req, res) => {
-    const { turno } = req.body;
-    if (!turno || !turno.id) return res.status(400).json({ mensaje: "Falta el turno a replicar." });
-    fusionar([turno]);
-    res.json({ ok: true });
+    try {
+        const cancelado = await cancelarTurno(id);
+        if (!cancelado) {
+            return res.status(404).json({ mensaje: "El turno no existe o ya estaba cancelado." });
+        }
+        console.log(`[🗑️ CANCELADO] Turno ${id}`);
+        return res.json({ mensaje: "Turno cancelado." });
+    } catch (error) {
+        console.error('[BD] Error al cancelar el turno:', error.message);
+        return res.status(503).json({ mensaje: "No se pudo cancelar el turno. Intente nuevamente." });
+    }
 };

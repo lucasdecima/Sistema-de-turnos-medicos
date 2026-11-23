@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Centro Médico · Turnos</title>
+    <title>Dra. Paula Barrionuevo · Turnos</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,9 +12,8 @@
             <div class="marca">
                 <span class="cruz" aria-hidden="true"></span>
                 <div>
-                    <strong>Centro Médico</strong>
-                    <h2>DRA. Barrionuevo Paula</h2>
-                    <small>Medica Clinica-Gestión de turnos</small>
+                    <strong>Dra. Paula Barrionuevo</strong>
+                    <small>Médica clínica · Gestión de turnos</small>
                 </div>
             </div>
             <p class="atencion">Horarios de atención<br>Mañana 08:00–10:30 · Tarde 15:00–17:30</p>
@@ -30,8 +29,18 @@
                 <fieldset>
                     <legend><span class="paso">1</span> Datos del paciente</legend>
                     <div class="campo">
-                        <label for="paciente">Nombre y apellido</label>
-                        <input type="text" id="paciente" placeholder="Ej: María Gómez" maxlength="60" required>
+                        <label for="dni">DNI</label>
+                        <input type="text" id="dni" inputmode="numeric" maxlength="8" placeholder="Sin puntos. Ej: 20111222" required>
+                    </div>
+                    <div class="fila">
+                        <div class="campo">
+                            <label for="nombre">Nombre</label>
+                            <input type="text" id="nombre" maxlength="60" placeholder="Ej: María" required>
+                        </div>
+                        <div class="campo">
+                            <label for="apellido">Apellido</label>
+                            <input type="text" id="apellido" maxlength="60" placeholder="Ej: Gómez" required>
+                        </div>
                     </div>
                 </fieldset>
 
