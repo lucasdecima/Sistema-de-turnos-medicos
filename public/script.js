@@ -1,5 +1,4 @@
-const URL_API = 'http://localhost:8000/api/turnos'; 
-
+const URL_API = '/api/turnos'; 
 
 
 const HORARIOS = {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { obtenerPool, cerrarPool } from './conexion.js';
-import { insertarTurno, listarTurnosConfirmados, cancelarTurno, esViolacion } from './TurnosRepositorio.js';
+import { insertarTurno, listarTurnosConfirmados, cancelarTurno, esViolacion } from './turnosRepositorio.js';
 
 const FECHA = '2030-03-15';
 const HORA = '10:00';

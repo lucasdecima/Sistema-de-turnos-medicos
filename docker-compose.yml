@@ -1,0 +1,42 @@
+# Levanta el sistema completo en tu PC: gateway + 2 nodos del microservicio.
+# La base de datos NO está acá: es el SQL Server que ya tenés corriendo en el contenedor "sqlturnos".
+name: turnos-medicos
+
+services:
+  turnos-a:
+    build:
+      context: .
+      dockerfile: microservicio-turnos/Dockerfile
+    image: turnos-microservicio:dev
+    env_file:
+      - ./microservicio-turnos/.env
+    environment:
+      PORT: 3001
+      DB_SERVER: host.docker.internal
+    init: true
+
+  turnos-b:
+    build:
+      context: .
+      dockerfile: microservicio-turnos/Dockerfile
+    image: turnos-microservicio:dev
+    env_file:
+      - ./microservicio-turnos/.env
+    environment:
+      PORT: 3002
+      DB_SERVER: host.docker.internal
+    init: true
+
+  gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    image: turnos-gateway:dev
+    environment:
+      NODOS: http://turnos-a:3001,http://turnos-b:3002
+    ports:
+      - "8000:8000"
+    depends_on:
+      - turnos-a
+      - turnos-b
+    init: true

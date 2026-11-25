@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { listarTurnosConfirmados, insertarTurno, cancelarTurno, esViolacion } from '../db/TurnosRepositorio.js';
+import { listarTurnosConfirmados, insertarTurno, cancelarTurno, esViolacion } from '../db/turnosRepositorio.js';
 
 
 

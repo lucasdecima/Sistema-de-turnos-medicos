@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 const app = express();
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TIMEOUT_MS = 3000;          
@@ -13,10 +13,12 @@ const PAUSA_NODO_CAIDO_MS = 5000;
 
 
 
-const nodos = [
-    { url: 'http://localhost:3001', caidoHasta: 0 },
-    { url: 'http://localhost:3002', caidoHasta: 0 }
-];
+
+const urlsNodos = (process.env.NODOS || 'http://localhost:3001,http://localhost:3002')
+    .split(',')
+    .map((url) => url.trim())
+    .filter(Boolean);
+const nodos = urlsNodos.map((url) => ({ url, caidoHasta: 0 }));
 
 let cacheTurnos = null;
 let cacheExpiraEn = 0;
