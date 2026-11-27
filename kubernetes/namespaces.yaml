@@ -1,0 +1,21 @@
+# Namespaces: sectores separados dentro del mismo clúster (uno por ambiente).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qa
+  labels:
+    entorno: qa
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uat
+  labels:
+    entorno: uat
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    entorno: prod

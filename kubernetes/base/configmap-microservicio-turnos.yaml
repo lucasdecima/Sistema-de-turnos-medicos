@@ -1,0 +1,14 @@
+# Configuración del microservicio que NO es secreta.
+# La contraseña de la base NO va acá: está en un Secret que se crea con un comando.
+# Valores para el clúster LOCAL (Docker Desktop). En la nube cambian DB_SERVER y DB_NAME.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: turnos-config
+data:
+  PORT: "3001"
+  DB_SERVER: host.docker.internal
+  DB_PORT: "1433"
+  DB_NAME: SistemaTurnosDB
+  DB_USER: app_turnos
+  DB_TRUST_CERT: "true"
