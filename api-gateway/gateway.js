@@ -24,8 +24,13 @@ let cacheTurnos = null;
 let cacheExpiraEn = 0;
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// Ruta de salud: Kubernetes la consulta para saber si el gateway sigue vivo
+app.get('/health', (req, res) => {
+    res.json({ estado: 'ok' });
+});
+
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 
 
@@ -116,6 +121,19 @@ app.delete('/api/turnos/:id', async (req, res) => {
     res.status(r.status).json(r.datos);
 });
 
-app.listen(PORT, () => {
+const servidor = app.listen(PORT, () => {
     console.log(`[GATEWAY] Escuchando en http://localhost:${PORT}`);
 });
+
+// APAGADO ORDENADO: Kubernetes envía SIGTERM antes de reemplazar un pod.
+// Dejamos de aceptar pedidos nuevos, terminamos los que están en curso y salimos.
+const apagar = (senal) => {
+    console.log(`[APAGADO] Señal ${senal} recibida. Cerrando...`);
+    servidor.close(() => {
+        console.log('[APAGADO] Listo.');
+        process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 10000).unref(); // si algo no termina en 10 s, salimos igual
+};
+process.on('SIGTERM', () => apagar('SIGTERM'));
+process.on('SIGINT', () => apagar('SIGINT'));
