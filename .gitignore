@@ -1,2 +1,9 @@
 node_modules/
 .env
+
+# Terraform: el estado y las variables locales pueden tener contraseñas
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
