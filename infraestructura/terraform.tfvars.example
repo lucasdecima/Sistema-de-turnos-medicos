@@ -1,0 +1,4 @@
+# Copiá este archivo como terraform.tfvars y completalo. terraform.tfvars NO se sube a Git.
+project_id    = "ID-DEL-PROYECTO-DE-GOOGLE-CLOUD"
+region        = "us-central1"
+crear_db_prod = false
