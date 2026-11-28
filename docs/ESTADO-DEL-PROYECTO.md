@@ -45,3 +45,12 @@ Licencia SQL Server en Cloud SQL (USD por nucleo-hora): Enterprise 0,47; Standar
 
 ## Reglas de trabajo
 Un paso a la vez, explicaciones simples en espanol, comandos para Git Bash, nunca pegar contrasenas, avisar antes de cualquier gasto en la nube.
+
+## Actualizacion (etapa 9 hecha)
+- Etapa 9 (Terraform): carpeta infraestructura/ con 4 modulos: networking (red privada), kubernetes (GKE Autopilot), database (Cloud SQL SQL Server Express) y registry (Artifact Registry).
+- Base no-prod con dos bases (QA y UAT), cada una con su usuario y contrasena generada por Terraform. Base de prod apagada por defecto (crear_db_prod = false).
+- terraform init y validate OK (Terraform v1.17.2, provider google v8.12.0). plan y apply NO ejecutados: requieren cuenta de Google Cloud.
+- Supuestos NO verificados: version SQLSERVER_2022_EXPRESS y tier db-custom-1-3840 (se confirman en el primer plan/apply).
+- No hay carpeta environments/: los ambientes se separan con variables. El estado de Terraform es local y Git lo ignora (tiene contrasenas).
+- SIGUIENTE: etapa 10 (GitHub Actions): ci.yml (en cada PR: dependencias, npm audit, build de imagenes Docker, terraform validate) y deploy-qa/uat/prod.yml (QA automatico; UAT y Prod con aprobacion manual; autenticacion con Google sin guardar claves, a verificar). Los deploy no se pueden probar hasta abrir la cuenta.
+- Pendiente despues: abrir cuenta GCP (6), desplegar (7), monitoreo y seguridad (11), completar costos (12), documento final (13).
